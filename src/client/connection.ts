@@ -1,16 +1,10 @@
 import * as _O from "fp-ts/lib/Option.js";
 import * as _E from "fp-ts/lib/Either.js";
-import { pipe, identity } from "fp-ts/lib/function.js";
+import { pipe } from "fp-ts/lib/function.js";
 // import { WebSocket } from "ws";
-import { heartbeatInterval, maxLatency, port } from "../networking.js";
-import {
-    ErrorCodec,
-    PongCodec,
-    JoinGameCodec,
-    LeaveGameCodec,
-    MessageCodec,
-    extractJson,
-} from "../parsing.js";
+import { extractJson } from "../parsing.js";
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Type } from "io-ts";
 
 export type Connection = {
     inGame: boolean,
@@ -21,106 +15,92 @@ export const disconnected: Connection = {
     inGame: false,
 };
 
-let n = 0;
+export const useWebsocket = <A>(
+    url: string, codec: Type<A, unknown, unknown>, timeout: number,
+    onError: () => _O.Option<A>, onMessage: (message: A) => _O.Option<A>
+): ((message: A) => void) => {
+    const [socket, setSocket] = useState<_O.Option<WebSocket>>(_O.none);
 
-export const connect = (update: (updater: (old: Connection) => Connection) => void): Connection => {
-    const socket = new WebSocket(`ws://localhost:${port}`);
+    const [pingTimeout, setPingTimeout] = useState<_O.Option<NodeJS.Timeout>>(_O.none);
 
-    let pingTimeout: NodeJS.Timeout | undefined = undefined;
+    // const socket = useMemo(() => new WebSocket(url), [url]);
 
-    const heartbeat = () => {
-        clearTimeout(pingTimeout);
-        n += 1;
-        console.debug(`Heartbeat ${n}`);
-        let beat = n;
+    const close = useCallback(() => {
+        console.log("close")
+        pipe(
+            pingTimeout,
+            _O.map(clearTimeout),
+        );
+        setSocket(_O.none);
+    }, [pingTimeout, setSocket]);
+
+    const heartbeat = useCallback(() => {
+        pipe(
+            pingTimeout,
+            _O.map(clearTimeout),
+        );
     
-        // Delay should be equal to the interval at which your server
-        // sends out pings plus a conservative assumption of the latency.
-        pingTimeout = setTimeout(() => {
+        setPingTimeout(_O.some(setTimeout(() => {
             console.error("Lost connection to server");
-            console.debug(beat);
-            update(disconnect);
-        }, heartbeatInterval + maxLatency);
+            disconnect();
+        }, timeout)));
+    }, [pingTimeout, timeout]);
 
-    }
-
-    socket.addEventListener("open", () => {
-        socket.addEventListener("message", (data) => {
-            pipe(
-                data.data,
-                extractJson,
-                _O.map(MessageCodec.decode),
-                _O.chain(_O.fromEither),
-                _O.match(
-                    () => {
-                        console.error("Malformed message");
-                        console.info(data.data);
-                        socket.send(JSON.stringify(ErrorCodec.encode({message: 'error', error: 'malformed_message'})));
-                    },
-                    (message) => {
-                        switch (message.message) {
-                            case "error": {
-                                console.error(`Error: ${message.error}`)
-                                break;
-                            }
-                            case "ping": {
-                                console.info("Recieved ping");
-                                heartbeat();
-                                socket.send(JSON.stringify(PongCodec.encode({message: 'pong'})));
-                                break;
-                            }
-                            default: {
-                                console.error(`Unhandled message`);
-                                console.info(data.data);
-                                socket.send(JSON.stringify(ErrorCodec.encode({message: 'error', error: 'unhandled_message'})));
-                                break;
-                            }
-                        }
-                    
-                    },
-                ),
-            );
-        });
-
+    const handleMessage = useCallback((data: MessageEvent) => {
+        pipe(
+            data.data,
+            extractJson,
+            _O.map(codec.decode),
+            _O.chain(_O.fromEither),
+            _O.match(
+                onError,
+                onMessage,
+            ),
+            _O.map((reply) => pipe(
+                socket,
+                _O.map((socket) => socket.send(JSON.stringify(codec.encode(reply)))),
+            )),
+        );
         heartbeat();
-    });
+    }, [socket, onError, onMessage, heartbeat]);
 
-    socket.addEventListener('close', () => update((connection) => {
-      clearTimeout(pingTimeout);
-      pingTimeout = undefined;
-      return {
-        ...connection,
-        inGame: false,
-      }
-    }));
+    const connect = useCallback(() => {
+        console.log("connect");
+        const newSocket = new WebSocket(url);
+   
+        newSocket.addEventListener("open", heartbeat);
+        newSocket.addEventListener("message", handleMessage);
+        newSocket.addEventListener('close', close);
 
-    return {
-        inGame: false,
-        socket,
-    }
-}
+        return newSocket;
+    }, [url, heartbeat, handleMessage, close]);
 
-export const disconnect = (connection: Connection): Connection => {
-    connection.socket?.close();
-    return disconnected;
-}
+    const disconnect = useCallback(() => {
+        console.log("disconnect");
+        pipe(
+            socket,
+            _O.map((socket) => {socket.close()}),
+        )
+    }, [socket]);
 
-export const joinGame = (connection: Connection, username: string): Connection => {
-    if ( connection.socket ) {
-        connection.socket.send(JSON.stringify(JoinGameCodec.encode( { message: "join_game", username: username } )));
-        return {
-            ...connection,
-            inGame: true,
-        }
-    } else {
-        return connection;
-    }
-}
+    useEffect(() => {
+        const socket = connect();
+        setSocket(_O.some(socket));
+        return () => {
+            console.log("disconnect");
+            socket.close();
+            setSocket(_O.none);
+        };
+    }, [connect, setSocket]);
 
-export const leaveGame = (connection: Connection): Connection => {
-    connection.socket?.send(JSON.stringify(LeaveGameCodec.encode( { message: "leave_game" } )));
-    return {
-        ...connection,
-        inGame: false,
-    };
+    const sendMessage = useCallback((message: A) => {
+        console.debug(message);
+        console.debug(socket);
+        pipe(
+            socket,
+            _O.map((socket) => socket.send(JSON.stringify(codec.encode( message )))),
+        );
+    }, [socket, codec])
+
+    return sendMessage;
 }
