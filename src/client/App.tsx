@@ -37,6 +37,7 @@ const App = () => {
     wsUrl,
     MessageCodec,
     wsTimeout,
+    heartbeatInterval,
     onError,
     onMessage,
   );

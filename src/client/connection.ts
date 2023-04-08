@@ -16,86 +16,83 @@ export const disconnected: Connection = {
 };
 
 export const useWebsocket = <A>(
-    url: string, codec: Type<A, unknown, unknown>, timeout: number,
+    url: string, codec: Type<A, unknown, unknown>, timeout: number, retry_time: number,
     onError: () => _O.Option<A>, onMessage: (message: A) => _O.Option<A>
 ): ((message: A) => void) => {
     const [socket, setSocket] = useState<_O.Option<WebSocket>>(_O.none);
-
-    const [pingTimeout, setPingTimeout] = useState<_O.Option<NodeJS.Timeout>>(_O.none);
-
-    // const socket = useMemo(() => new WebSocket(url), [url]);
-
-    const close = useCallback(() => {
-        console.log("close")
-        pipe(
-            pingTimeout,
-            _O.map(clearTimeout),
-        );
-        setSocket(_O.none);
-    }, [pingTimeout, setSocket]);
-
-    const heartbeat = useCallback(() => {
-        pipe(
-            pingTimeout,
-            _O.map(clearTimeout),
-        );
-    
-        setPingTimeout(_O.some(setTimeout(() => {
-            console.error("Lost connection to server");
-            disconnect();
-        }, timeout)));
-    }, [pingTimeout, timeout]);
-
-    const handleMessage = useCallback((data: MessageEvent) => {
-        pipe(
-            data.data,
-            extractJson,
-            _O.map(codec.decode),
-            _O.chain(_O.fromEither),
-            _O.match(
-                onError,
-                onMessage,
-            ),
-            _O.map((reply) => pipe(
-                socket,
-                _O.map((socket) => socket.send(JSON.stringify(codec.encode(reply)))),
-            )),
-        );
-        heartbeat();
-    }, [socket, onError, onMessage, heartbeat]);
-
-    const connect = useCallback(() => {
-        console.log("connect");
-        const newSocket = new WebSocket(url);
-   
-        newSocket.addEventListener("open", heartbeat);
-        newSocket.addEventListener("message", handleMessage);
-        newSocket.addEventListener('close', close);
-
-        return newSocket;
-    }, [url, heartbeat, handleMessage, close]);
-
-    const disconnect = useCallback(() => {
-        console.log("disconnect");
-        pipe(
-            socket,
-            _O.map((socket) => {socket.close()}),
-        )
-    }, [socket]);
+    const [reconnect, setReconnect] = useState(false);
 
     useEffect(() => {
-        const socket = connect();
-        setSocket(_O.some(socket));
-        return () => {
-            console.log("disconnect");
-            socket.close();
-            setSocket(_O.none);
-        };
-    }, [connect, setSocket]);
+        if ( reconnect ) {
+            let reconnectTimeout = setTimeout(() => {
+                console.info("Reconnecting");
+                setReconnect(false);
+            }, retry_time);
+            return () => {
+                clearTimeout(reconnectTimeout);
+            };
+        } else {
+            const newSocket = new WebSocket(url);
+
+            let pingTimeout: _O.Option<NodeJS.Timeout> = _O.none;
+            let active = true;
+
+            const close = () => {
+                if (active) {
+                    setReconnect(true);
+                }
+            };
+
+            const heartbeat = () => {
+                if (active) {
+                    pipe(
+                        pingTimeout,
+                        _O.map(clearTimeout),
+                    );
+    
+                    pingTimeout = _O.some(setTimeout(() => {
+                        console.error("Lost connection to server");
+                        close();
+                    }, timeout));
+                }
+            };
+
+            const handleMessage = (data: MessageEvent) => {
+                if (active) {
+                    pipe(
+                        data.data,
+                        extractJson,
+                        _O.map(codec.decode),
+                        _O.chain(_O.fromEither),
+                        _O.match(
+                            onError,
+                            onMessage,
+                        ),
+                        _O.map((reply) => newSocket.send(JSON.stringify(codec.encode(reply)))),
+                    );
+                    heartbeat();
+                }
+            };
+   
+            newSocket.addEventListener("open", heartbeat);
+            newSocket.addEventListener("message", handleMessage);
+            newSocket.addEventListener('close', close);
+
+            setSocket(_O.some(newSocket));
+
+            return () => {
+                pipe(
+                    pingTimeout,
+                    _O.map(clearTimeout),
+                );
+                active = false;
+                newSocket.close();
+                setSocket(_O.none);
+            };
+        }
+    }, [reconnect, setReconnect, setSocket, url, codec, timeout, onError, onMessage]);
 
     const sendMessage = useCallback((message: A) => {
-        console.debug(message);
-        console.debug(socket);
         pipe(
             socket,
             _O.map((socket) => socket.send(JSON.stringify(codec.encode( message )))),

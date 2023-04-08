@@ -1,8 +1,7 @@
 import express from "express";
 import * as _O from "fp-ts/lib/Option.js";
 import * as _E from "fp-ts/lib/Either.js";
-import { pipe, identity } from "fp-ts/lib/function.js";
-import { createServer } from "http";
+import { pipe } from "fp-ts/lib/function.js";
 import { heartbeatInterval } from "./networking.js";
 import {
     Error,
@@ -112,7 +111,6 @@ const logError = (username: string, event: Error) => {
 }
 
 const heartbeat = (connection: Connection) => {
-    console.info("Heartbeat");
     connection.isAlive = true;
 }
 
@@ -178,7 +176,6 @@ websocketServer.on("connection", (socket) => {
         }
 
         connection.isAlive = false;
-        console.info("Pinging client");
         socket.send(JSON.stringify(PingCodec.encode({message: 'ping'})));
     }, heartbeatInterval);
     
