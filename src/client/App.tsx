@@ -1,9 +1,9 @@
 import * as _O from "fp-ts/lib/Option.js";
 import { useCallback, useState } from 'react'
 import './App.css'
-import { useWebsocket } from './connection.js'
+import { useWebsocket } from './websocket.js'
 import { Message, MessageCodec } from '../parsing.js'
-import { heartbeatInterval, maxLatency, port } from "../networking.js";
+import { heartbeatInterval, maxLatency, port } from "../config.js";
 
 const wsUrl = `ws://localhost:${port}`;
 const wsTimeout = heartbeatInterval + maxLatency;

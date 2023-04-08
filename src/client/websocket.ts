@@ -3,7 +3,7 @@ import * as _E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 // import { WebSocket } from "ws";
 import { extractJson } from "../parsing.js";
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Type } from "io-ts";
 
 export type Connection = {

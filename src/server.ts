@@ -2,7 +2,7 @@ import express from "express";
 import * as _O from "fp-ts/lib/Option.js";
 import * as _E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
-import { heartbeatInterval } from "./networking.js";
+import { heartbeatInterval } from "./config.js";
 import {
     Error,
     ErrorCodec,

@@ -2,7 +2,7 @@ import * as _O from "fp-ts/lib/Option.js";
 import * as _E from "fp-ts/lib/Either.js";
 import { pipe, identity } from "fp-ts/lib/function.js";
 import { WebSocket } from "ws";
-import { heartbeatInterval, maxLatency } from "./networking.js";
+import { heartbeatInterval, maxLatency } from "./config.js";
 import {
     Error,
     ErrorCodec,
