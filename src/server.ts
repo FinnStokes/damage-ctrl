@@ -42,6 +42,10 @@ const newPlayer = (connection: Connection): Player => { return { activeConnectio
 
 const joinGame = (connection: Connection) => (event: JoinGame) => {
     const username = event.username;
+    if ( !username ) {
+        connection.socket.send(JSON.stringify(ErrorCodec.encode( { message: "error", error: "blank_username" } )));
+        return;
+    }
     pipe(
         players[username],
         _O.fromNullable,

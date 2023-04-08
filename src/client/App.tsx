@@ -15,7 +15,7 @@ const App = () => {
   }, []);
 
   const message = () => {
-    if (username == "") {
+    if (!username) {
       return (
         <p>Enter your username</p>
       );
@@ -27,16 +27,22 @@ const App = () => {
   }
 
   const button = () => {
-    if ( connection.inGame ) {
+    if ( !username ) {
       return (
-        <button onClick={() => setConnection(leaveGame(connection))}>
-          Leave Game
+        <button disabled>
+          Join Game
+        </button>
+      )
+    } else if ( !connection.inGame ) {
+      return (
+        <button onClick={() => setConnection(joinGame(connection, username))}>
+          Join Game
         </button>
       )
     } else {
       return (
-        <button onClick={() => setConnection(joinGame(connection, username))}>
-          Join Game
+        <button onClick={() => setConnection(leaveGame(connection))}>
+          Leave Game
         </button>
       )
     }

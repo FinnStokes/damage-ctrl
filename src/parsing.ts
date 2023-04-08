@@ -19,6 +19,7 @@ export const ErrorCodec = t.type({
     error: t.union([
       t.literal('username_in_use'),
       t.literal('unhandled_message'),
+      t.literal('blank_username'),
     ]),
 });
 
