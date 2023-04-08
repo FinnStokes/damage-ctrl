@@ -9,11 +9,12 @@ import {
     ErrorCodec,
     extractJson,
     JoinGame,
-    JoinGameCodec,
-    LeaveGame,
-    LeaveGameCodec,
+    PongCodec,
+    Message,
+    MessageCodec,
+    PingCodec,
 } from "./parsing.js";
-import { RawData, WebSocketServer, WebSocket } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
   
 const app = express();
 
@@ -28,7 +29,7 @@ const websocketServer = new WebSocketServer({ server });
 type Connection = {
     socket: WebSocket,
     isAlive: boolean,
-    messageListener?: (data: RawData) => boolean,
+    messageListener?: (message: Message) => boolean,
     terminate?: () => void,
 }
 
@@ -40,7 +41,7 @@ const players: Record<string, Player> = {};
 
 const newPlayer = (connection: Connection): Player => { return { activeConnection: connection } };
 
-const joinGame = (connection: Connection) => (event: JoinGame) => {
+const joinGame = (connection: Connection, event: JoinGame) => {
     const username = event.username;
     if ( !username ) {
         connection.socket.send(JSON.stringify(ErrorCodec.encode( { message: "error", error: "blank_username" } )));
@@ -75,47 +76,43 @@ const joinGame = (connection: Connection) => (event: JoinGame) => {
             },
         ),
         _O.map((player) => {
-            connection.messageListener = (data: RawData): boolean => {
-                return (
-                    pipe(
-                        data.toString(),
-                        extractJson,
-                        _O.map(LeaveGameCodec.decode),
-                        _O.chain(_O.fromEither),
-                        _O.map(leaveGame(player, connection, username)),
-                        _O.isSome,
-                    )
-                    || pipe(
-                        data.toString(),
-                        extractJson,
-                        _O.map(ErrorCodec.decode),
-                        _O.chain(_O.fromEither),
-                        _O.map(logError(username)),
-                        _O.isSome,
-                    )
-                );
+            connection.messageListener = (message: Message): boolean => {
+                switch (message.message) {
+                    case "leave_game": {
+                        leaveGame(player, connection, username);
+                        return true;
+                    }
+                    case "error": {
+                        logError(username, message);
+                        return true;
+                    }
+                    default: {
+                        return false;
+                    }
+                }
             };
             connection.terminate = () => {
-                leaveGame(player, connection, username)({ message: "leave_game" })
+                leaveGame(player, connection, username);
             };
         }),
     )
 }
 
-const leaveGame = (player: Player, connection: Connection, username: string) => (event: LeaveGame) => {
+const leaveGame = (player: Player, connection: Connection, username: string) => {
     console.log(`Player ${username} left game`);
     connection.messageListener = undefined;
     connection.terminate = undefined;
     player.activeConnection = undefined;
 }
 
-const logError = (username: string) => (event: Error) => {
+const logError = (username: string, event: Error) => {
     console.error(
         username ? `User ${username} returned error: ${event.error}` : `Unnamed user returned error: ${event.error}`
     )
 }
 
-const heartbeat = (connection: Connection) => () => {
+const heartbeat = (connection: Connection) => {
+    console.info("Heartbeat");
     connection.isAlive = true;
 }
 
@@ -124,42 +121,65 @@ websocketServer.on("connection", (socket) => {
 
     socket.on('error', console.error);
 
-    socket.on('pong', heartbeat(connection))
-
     socket.on('message', (data) => {
-        const handled = pipe(
+        pipe(
             data.toString(),
             extractJson,
-            _O.map(JoinGameCodec.decode),
+            _O.map(MessageCodec.decode),
             _O.chain(_O.fromEither),
-            _O.map(joinGame(connection)),
-            _O.isSome,
-        )
-        || pipe(
-            connection.messageListener,
-            _O.fromNullable,
-            _O.map((listener) => listener(data)),
-            _O.getOrElse(() => false),
-        ) || pipe(
-            data.toString(),
-            extractJson,
-            _O.map(ErrorCodec.decode),
-            _O.chain(_O.fromEither),
-            _O.map(logError("")),
-            _O.isSome,
+            _O.match(
+                () => {
+                    console.error("Malformed message");
+                    console.info(data.toString());
+                    socket.send(JSON.stringify(ErrorCodec.encode({message: 'error', error: 'malformed_message'})));
+                },
+                (message) => {
+                    if ( pipe(
+                        connection.messageListener,
+                        _O.fromNullable,
+                        _O.map((listener) => listener(message)),
+                        _O.getOrElse(() => false),
+                    ) ) {
+                        return;
+                    }
+                    switch ( message.message ) {
+                        case "join_game": {
+                            joinGame(connection, message);
+                            break;
+                        }
+                        case "ping": {
+                            connection.socket.send(JSON.stringify(PongCodec.encode({message: 'pong'})));
+                            break;
+                        }
+                        case "pong": {
+                            heartbeat(connection);
+                            break;
+                        }
+                        case "error": {
+                            logError("", message);
+                            break;
+                        }
+                        default: {
+                            console.error("Unhandled message");
+                            console.info(data.toString());
+                            socket.send(JSON.stringify(ErrorCodec.encode({message: 'error', error: 'unhandled_message'})));
+                            break;
+                        }
+                    }
+                },
+            )
         );
-        if (!handled) {
-            console.error("Unhandled message");
-            console.info(data.toString());
-            socket.send(JSON.stringify(ErrorCodec.encode({message: 'error', error: 'unhandled_message'})));
-        }
     });
 
     const interval = setInterval(() => {
-        if (connection.isAlive === false) return socket.terminate();
+        if (connection.isAlive === false) {
+            console.error("Lost connection to client")
+            return socket.terminate();
+        }
 
         connection.isAlive = false;
-        socket.ping();
+        console.info("Pinging client");
+        socket.send(JSON.stringify(PingCodec.encode({message: 'ping'})));
     }, heartbeatInterval);
     
     socket.on('close', () => {

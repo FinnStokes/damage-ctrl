@@ -19,11 +19,34 @@ export const ErrorCodec = t.type({
     error: t.union([
       t.literal('username_in_use'),
       t.literal('unhandled_message'),
+      t.literal('malformed_message'),
       t.literal('blank_username'),
     ]),
 });
 
 export type Error = typeof ErrorCodec._A;
+
+export const PingCodec = t.type({
+    message: t.literal('ping'),
+});
+
+export type Ping = typeof PingCodec._A;
+
+export const PongCodec = t.type({
+    message: t.literal('pong'),
+});
+
+export type Pong = typeof PongCodec._A;
+
+export const MessageCodec = t.union([
+  JoinGameCodec,
+  LeaveGameCodec,
+  ErrorCodec,
+  PingCodec,
+  PongCodec,
+]);
+
+export type Message = typeof MessageCodec._A;
 
 export const extractJson = (rawJson: string) => {
     try {
