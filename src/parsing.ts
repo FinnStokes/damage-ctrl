@@ -1,4 +1,4 @@
-import { none, some } from "fp-ts/lib/Option";
+import { none, some } from "fp-ts/lib/Option.js";
 import * as t from "io-ts";
 
 export const JoinGameCodec = t.type({

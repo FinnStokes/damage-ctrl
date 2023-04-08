@@ -1,8 +1,8 @@
-import * as _O from "fp-ts/lib/Option";
-import * as _E from "fp-ts/lib/Either";
-import { pipe, identity } from "fp-ts/lib/function";
+import * as _O from "fp-ts/lib/Option.js";
+import * as _E from "fp-ts/lib/Either.js";
+import { pipe, identity } from "fp-ts/lib/function.js";
 import { WebSocket } from "ws";
-import { heartbeatInterval, maxLatency } from "./networking";
+import { heartbeatInterval, maxLatency } from "./networking.js";
 import {
     Error,
     ErrorCodec,
@@ -11,7 +11,7 @@ import {
     JoinGameCodec,
     LeaveGame,
     LeaveGameCodec,
-} from "./parsing";
+} from "./parsing.js";
 
 const port = process.env.PORT;
 const username = "Digitalis";

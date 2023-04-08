@@ -1,9 +1,9 @@
 import express from "express";
-import * as _O from "fp-ts/lib/Option";
-import * as _E from "fp-ts/lib/Either";
-import { pipe, identity } from "fp-ts/lib/function";
+import * as _O from "fp-ts/lib/Option.js";
+import * as _E from "fp-ts/lib/Either.js";
+import { pipe, identity } from "fp-ts/lib/function.js";
 import { createServer } from "http";
-import { heartbeatInterval } from "./networking";
+import { heartbeatInterval } from "./networking.js";
 import {
     Error,
     ErrorCodec,
@@ -12,8 +12,8 @@ import {
     JoinGameCodec,
     LeaveGame,
     LeaveGameCodec,
-} from "./parsing";
-import { RawData, Server as WebsocketServer, WebSocket } from "ws";
+} from "./parsing.js";
+import { RawData, WebSocketServer, WebSocket } from "ws";
   
 const app = express();
 
@@ -23,7 +23,7 @@ const server = app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
 });
 
-const websocketServer = new WebsocketServer({ server });
+const websocketServer = new WebSocketServer({ server });
 
 type Connection = {
     socket: WebSocket,
