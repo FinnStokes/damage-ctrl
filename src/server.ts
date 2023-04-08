@@ -110,7 +110,9 @@ const leaveGame = (player: Player, connection: Connection, username: string) => 
 }
 
 const logError = (username: string) => (event: Error) => {
-    console.error(`User ${username} returned error: ${event.error}`)
+    console.error(
+        username ? `User ${username} returned error: ${event.error}` : `Unnamed user returned error: ${event.error}`
+    )
 }
 
 const heartbeat = (connection: Connection) => () => {
@@ -138,6 +140,13 @@ websocketServer.on("connection", (socket) => {
             _O.fromNullable,
             _O.map((listener) => listener(data)),
             _O.getOrElse(() => false),
+        ) || pipe(
+            data.toString(),
+            extractJson,
+            _O.map(ErrorCodec.decode),
+            _O.chain(_O.fromEither),
+            _O.map(logError("")),
+            _O.isSome,
         );
         if (!handled) {
             console.error("Unhandled message");

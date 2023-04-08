@@ -29,7 +29,7 @@ export const connect = (update: (updater: (old: Connection) => Connection) => vo
     socket.addEventListener("open", () => {
         socket.addEventListener("message", (data) => {
             const handled = pipe(
-                data.toString(),
+                data.data,
                 extractJson,
                 _O.map(ErrorCodec.decode),
                 _O.chain(_O.fromEither),
@@ -38,7 +38,7 @@ export const connect = (update: (updater: (old: Connection) => Connection) => vo
             );
             if (!handled) {
                 console.error("Unhandled message");
-                console.info(data.toString());
+                console.info(data.data);
                 socket.send(JSON.stringify(ErrorCodec.encode({message: 'error', error: 'unhandled_message'})));
             }
         });
