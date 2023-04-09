@@ -6,13 +6,13 @@ export const JoinGameCodec = t.type({
     username: t.string,
 });
 
-export type JoinGame = typeof JoinGameCodec._A;
+export type JoinGame = t.TypeOf<typeof JoinGameCodec>;
 
 export const LeaveGameCodec = t.type({
     message: t.literal('leave_game'),
 });
 
-export type LeaveGame = typeof LeaveGameCodec._A;
+export type LeaveGame = t.TypeOf<typeof LeaveGameCodec>;
 
 export const ErrorCodec = t.type({
     message: t.literal('error'),
@@ -24,19 +24,19 @@ export const ErrorCodec = t.type({
     ]),
 });
 
-export type Error = typeof ErrorCodec._A;
+export type Error = t.TypeOf<typeof ErrorCodec>;
 
 export const PingCodec = t.type({
     message: t.literal('ping'),
 });
 
-export type Ping = typeof PingCodec._A;
+export type Ping = t.TypeOf<typeof PingCodec>;
 
 export const PongCodec = t.type({
     message: t.literal('pong'),
 });
 
-export type Pong = typeof PongCodec._A;
+export type Pong = t.TypeOf<typeof PongCodec>;
 
 export const MessageCodec = t.union([
   JoinGameCodec,
@@ -46,7 +46,7 @@ export const MessageCodec = t.union([
   PongCodec,
 ]);
 
-export type Message = typeof MessageCodec._A;
+export type Message = t.TypeOf<typeof MessageCodec>;
 
 export const extractJson = (rawJson: string) => {
     try {
