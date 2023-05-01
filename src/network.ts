@@ -1,3 +1,6 @@
+import * as _O from "fp-ts/lib/Option.js";
+import * as _R from "./Record.js";
+import { pipe } from "fp-ts/lib/function.js";
 import * as t from "io-ts";
 
 export type Unit = {
@@ -6,33 +9,48 @@ export type Unit = {
     cost: number,
 }
 
-export type Board = {
-    layout: Network,
-    units: Unit[],
+export type NodeKey<T extends NetworkType> = keyof typeof networks[T]['nodes'];
+
+export type Board<T extends NetworkType> = {
+    layout: T,
+    units: Record<NodeKey<T>, _O.Option<Unit>>,
 }
 
-export type Network = {
-    nodes: Node[],
-    links: Link[],
+export const emptyBoard = <T extends NetworkType>(layout: T) => (
+    {
+        layout,
+        units: pipe(
+            networks[layout].nodes,
+            _R.map(() => (_O.none as _O.Option<Unit>))
+        )
+    } as Board<T>
+);
+
+export type Network<Key extends number> = {
+    nodes: Record<Key, Node<Key>>,
+    links: Link<Key>[],
 }
 
-export type Node = {
-    neighbors: Node[],
+export type Node<Key extends number> = {
+    neighbors: Key[],
     openPort: boolean,
 }
 
-export type NodeSpecifier = Omit<Node, "neighbors">;
+export type NodeSpecifier = Omit<Node<number>, "neighbors">;
 
-export type Link = [number, number];
+export type Link<Key extends number> = [Key, Key];
 
-const newNetwork = (nodes: NodeSpecifier[], links: Link[]): Network => {
-    const processedNodes = nodes.map((node: NodeSpecifier): Node => ({
-        ...node,
-        neighbors: [],
-    }));
+const newNetwork = <Key extends number>(nodes: Record<Key, NodeSpecifier>, links: Link<Key>[]): Network<Key> => {
+    const processedNodes = pipe(
+        nodes,
+        _R.map((node: NodeSpecifier): Node<Key> => ({
+            ...node,
+            neighbors: [],
+        })),
+    );
     links.forEach(([i, j]) => {
-        processedNodes[i].neighbors.push(processedNodes[j]);
-        processedNodes[j].neighbors.push(processedNodes[i]);
+        processedNodes[i].neighbors.push(j);
+        processedNodes[j].neighbors.push(i);
     })
     return {
         nodes: processedNodes,

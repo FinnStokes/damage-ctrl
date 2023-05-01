@@ -1,0 +1,45 @@
+.board {
+    width: min(100vw, 100vh);
+    height: min(50vw, 50vh);
+    margin: 1em auto 0 auto;
+    position: relative;
+}
+
+.node {
+    width: calc(min(15vw, 15vh));
+    height: calc(min(15vw, 15vh));
+    clip-path: polygon(100.00%   70.71%,
+                        70.71%  100.00%,
+                        29.29%  100.00%,
+                         0.00%   70.71%,
+                         0.00%   29.29%,
+                        29.29%    0.00%,
+                        70.71%    0.00%,
+                       100.00%   29.29%);
+    background: white;
+    position: absolute;
+    transform: translateX(-50%) translateY(-50%);
+}
+
+.link {
+    height: calc(min(1vw, 1vh));
+    background: grey;
+    position: absolute;
+    transform-origin: left;
+    z-index: -1;
+}
+
+.port {
+    height: calc(min(4vw, 4vh));
+    width: calc(min(11vw, 11vh));
+    clip-path: polygon(  0.0%  37.5%,
+                        80.0%  37.5%,
+                       100.0%   0.0%,
+                       100.0% 100.0%,
+                        80.0%  62.5%,
+                         0.0%  62.5%);
+    background: grey;
+    position: absolute;
+    transform-origin: left;
+    z-index: -1;
+}

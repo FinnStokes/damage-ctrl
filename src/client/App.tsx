@@ -4,6 +4,8 @@ import './App.css'
 import { useWebsocket } from './websocket.js'
 import { Message, MessageCodec } from '../parsing.js'
 import { heartbeatInterval, maxLatency, port } from "../config.js";
+import { GameBoard } from "./GameBoard";
+import { emptyBoard } from "../network";
 
 const wsUrl = `ws://localhost:${port}`;
 const wsTimeout = heartbeatInterval + maxLatency;
@@ -62,7 +64,7 @@ const App = () => {
         <p>Welcome, {username}!</p>
       );
     }
-  }
+  };
 
   const button = () => {
     if ( !username ) {
@@ -86,12 +88,25 @@ const App = () => {
     }
   };
 
+  const currentBoard = emptyBoard('mesh');
+
+  const board = () => {
+    if ( !inGame ) {
+      return ""
+    } else {
+      return (
+        <GameBoard board={ currentBoard }/>
+      )
+    }
+  };
+
   return (
     <div className="App">
       <div className="card">
         <input type="text" onChange={(event) => setUsername(event.target.value)} />
         {message()}
         {button()}
+        {board()}
       </div>
     </div>
   )
